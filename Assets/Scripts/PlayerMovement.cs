@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
+    [Header("Components")]
     private Rigidbody2D playerBody;
     private InputActions inputActions;
 
@@ -13,8 +14,16 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float maxSpeed = 12f;
     [SerializeField] private float linearDrag = 7f;
     private float movementDirection;
-    private float speed = 0f;
     private bool changingDirection => (playerBody.velocity.x > 0f && movementDirection < 0f) || (playerBody.velocity.x < 0f && movementDirection > 0f);
+
+    [Header("Jump Variables")]
+    [SerializeField] private float jumpForce = 12f;
+    [SerializeField] private float jumpHeight = 10f;
+    [SerializeField] private float jumpDuration = 5f;
+    [SerializeField] private float gravitySuppresionTimer = 1f;
+    [SerializeField] private float gravityModifier = 1f;
+
+    private bool grounded => IsGrounded();
 
     private void Awake() {
         playerBody = GetComponent<Rigidbody2D>();
@@ -47,6 +56,15 @@ public class PlayerMovement : MonoBehaviour
         } else {
             playerBody.drag = 0f;
         }
+    }
+
+    private void OnJump() {
+        Debug.Log("JUMP");
+        playerBody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+    }
+
+    private bool IsGrounded() {
+        return true;
     }
 
     private void OnEnable() {
