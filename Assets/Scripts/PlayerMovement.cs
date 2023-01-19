@@ -3,8 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
-{
+public class PlayerMovement : MonoBehaviour {
     [Header("Components")]
     private Rigidbody2D playerBody;
     private InputActions inputActions;
@@ -23,11 +22,18 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float gravitySuppresionTimer = 1f;
     [SerializeField] private float gravityModifier = 1f;
 
-    private bool grounded => IsGrounded();
+    [Header("Layer Masks")]
+    [SerializeField] private LayerMask groundLayer;
+
+    [Header("Environment Interaction")]
+    [SerializeField] private float collisionCapsuleRadius = 1f;
+    private BoxCollider2D playerCollider;
+    private bool grounded;
 
     private void Awake() {
         playerBody = GetComponent<Rigidbody2D>();
         inputActions = new InputActions();
+        playerCollider = GetComponentInChildren<BoxCollider2D>();
     }
 
     private void Update() {
@@ -35,6 +41,7 @@ public class PlayerMovement : MonoBehaviour
     }
 
     private void FixedUpdate() {
+        IsGrounded();
         MoveCharacter();
         ApplyLinearDrag();
     }
@@ -60,11 +67,23 @@ public class PlayerMovement : MonoBehaviour
 
     private void OnJump() {
         Debug.Log("JUMP");
+        //if (grounded) {
         playerBody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        //}
     }
 
-    private bool IsGrounded() {
-        return true;
+    private void IsGrounded() {
+        Vector3 groundColliderVector = new Vector3(playerCollider.bounds.center.x, playerCollider.bounds.min.y - 0.1f, playerCollider.bounds.center.z);
+        grounded = Physics.CheckCapsule(playerCollider.bounds.center, groundColliderVector, collisionCapsuleRadius);
+        if (grounded) {
+            Debug.Log("GROUNDED: " + grounded);
+        }        
+    }
+
+    private void OnDrawGizmos() {
+        Vector3 groundColliderVector = new Vector3(.bounds.center.x, playerCollider.bounds.min.y - 0.1f, playerCollider.bounds.center.z);
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(transform.position, transform.position + groundColliderVector * collisionCapsuleRadius);
     }
 
     private void OnEnable() {
