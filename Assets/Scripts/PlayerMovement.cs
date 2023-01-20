@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerMovement : MonoBehaviour {
     [Header("Components")]
@@ -17,27 +18,25 @@ public class PlayerMovement : MonoBehaviour {
 
     [Header("Jump Variables")]
     [SerializeField] private float jumpForce = 12f;
-    [SerializeField] private float jumpHeight = 10f;
+    /*[SerializeField] private float jumpHeight = 10f;
     [SerializeField] private float jumpDuration = 5f;
     [SerializeField] private float gravitySuppresionTimer = 1f;
-    [SerializeField] private float gravityModifier = 1f;
+    [SerializeField] private float gravityModifier = 1f;*/
 
     [Header("Layer Masks")]
-    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private LayerMask groundLayerMask;
 
     [Header("Environment Interaction")]
-    [SerializeField] private float collisionCapsuleRadius = 1f;
-    private BoxCollider2D playerCollider;
-    private bool grounded;
+    [SerializeField] private float groundCollisionDistance = .2f;
+    private BoxCollider2D playerCollider2D;
 
     private void Awake() {
         playerBody = GetComponent<Rigidbody2D>();
         inputActions = new InputActions();
-        playerCollider = GetComponentInChildren<BoxCollider2D>();
+        playerCollider2D = GetComponentInChildren<BoxCollider2D>();
     }
 
     private void Update() {
-        movementDirection = inputActions.Player._1DMove.ReadValue<float>();
     }
 
     private void FixedUpdate() {
@@ -65,25 +64,21 @@ public class PlayerMovement : MonoBehaviour {
         }
     }
 
+    private void On_1DMove(InputValue input) {
+        movementDirection = input.Get<float>();
+    }
+
     private void OnJump() {
-        Debug.Log("JUMP");
-        //if (grounded) {
-        playerBody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-        //}
+        if (IsGrounded()) {
+            playerBody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        }
     }
 
-    private void IsGrounded() {
-        Vector3 groundColliderVector = new Vector3(playerCollider.bounds.center.x, playerCollider.bounds.min.y - 0.1f, playerCollider.bounds.center.z);
-        grounded = Physics.CheckCapsule(playerCollider.bounds.center, groundColliderVector, collisionCapsuleRadius);
-        if (grounded) {
-            Debug.Log("GROUNDED: " + grounded);
-        }        
-    }
-
-    private void OnDrawGizmos() {
-        Vector3 groundColliderVector = new Vector3(.bounds.center.x, playerCollider.bounds.min.y - 0.1f, playerCollider.bounds.center.z);
-        Gizmos.color = Color.green;
-        Gizmos.DrawLine(transform.position, transform.position + groundColliderVector * collisionCapsuleRadius);
+    private bool IsGrounded() {
+        Vector3 wallCollisionModifier = new Vector3(0.1f, 0, 0);
+        RaycastHit2D raycastHit = Physics2D.BoxCast(playerCollider2D.bounds.center, playerCollider2D.bounds.size - wallCollisionModifier, 0f, Vector3.down, groundCollisionDistance, groundLayerMask);
+        //Debug.DrawRay(playerCollider2D.bounds.center, Vector3.down * (playerCollider2D.bounds.extents.y + groundCollisionDistance), Color.green);
+        return raycastHit.collider != null;
     }
 
     private void OnEnable() {
