@@ -18,6 +18,7 @@ public class MovementController : MonoBehaviour {
     [SerializeField] private float groundedLinearDrag = 0.2f;
     private float movementDirection;
 
+
     [Header("Environment Interaction")]
     [SerializeField] private LayerMask groundLayerMask;
     [SerializeField] private float groundColliderRaycastLength = .2f;
@@ -25,9 +26,11 @@ public class MovementController : MonoBehaviour {
     [Header("Jump Variables")]
     [SerializeField] private float jumpForce = 10f;
     [SerializeField] private float jumpHeight = 12f;
-    private bool isGrounded => IsGrounded();
-    private float lastGroundedTime = 0f;
-    private float lastJumpTime = 0f;
+    [SerializeField] private float fallMultiplier = 2.5f;
+    [SerializeField] private float lowJumpMultiplier = 2f;
+
+    private float coyoteTime = 0.5f;
+    private float coyoteTimeCounter;
 
 
     private void Awake() {
@@ -37,8 +40,13 @@ public class MovementController : MonoBehaviour {
     }
 
     private void FixedUpdate() {
+        UpdateJumpVariables();
         MoveCharacter();
-        ApplyGroundedLinearDrag();
+        if (IsGrounded()) {
+            ApplyGroundedLinearDrag();
+        } else {
+            ApplyFallMultiplier();
+        }
     }
 
     // Capture left/right movement value using Unity Input System
@@ -48,11 +56,18 @@ public class MovementController : MonoBehaviour {
 
     // Handle Jump input using Unity Input System
     private void OnJump() {
-        if (isGrounded) {
+        if (coyoteTimeCounter > 0f) {
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-            lastGroundedTime = 0f;
-            lastJumpTime = 0f;
         }
+    }
+    private bool IsGrounded() {
+        // Apply small adjustment inwards to prevent isGrounded from being triggered when player is touching a wall/ceiling
+        Vector3 wallCollisionModifier = new Vector3(0.1f, 0, 0);
+        // Use raycast to check for collisions with ground
+        RaycastHit2D raycastHit = Physics2D.BoxCast(playerCollider2D.bounds.center, playerCollider2D.bounds.size - wallCollisionModifier, 0f, Vector3.down, groundColliderRaycastLength, groundLayerMask);
+        // Draw collider box
+        //Debug.DrawRay(playerCollider2D.bounds.center, Vector3.down * (playerCollider2D.bounds.extents.y + groundCollisionDistance), Color.green);
+        return raycastHit.collider != null;
     }
 
     private void MoveCharacter() {
@@ -72,7 +87,7 @@ public class MovementController : MonoBehaviour {
 
     private void ApplyGroundedLinearDrag() {
         // Ensure we're grounded and not input movement controls
-        if (isGrounded && movementDirection == 0) {
+        if (IsGrounded() && movementDirection == 0) {
             // Apply minimum of acceleration or linear drag to movement direction
             float linearDragStrength = MathF.Min(Mathf.Abs(rb.velocity.x), Mathf.Abs(groundedLinearDrag));
             linearDragStrength *= Mathf.Sign(rb.velocity.x);
@@ -82,15 +97,26 @@ public class MovementController : MonoBehaviour {
         }
     }
 
-    private bool IsGrounded() {
-        // Apply small adjustment inwards to prevent isGrounded from being triggered when player is touching a wall/ceiling
-        Vector3 wallCollisionModifier = new Vector3(0.1f, 0, 0);
-        // Use raycast to check for collisions with ground
-        RaycastHit2D raycastHit = Physics2D.BoxCast(playerCollider2D.bounds.center, playerCollider2D.bounds.size - wallCollisionModifier, 0f, Vector3.down, groundColliderRaycastLength, groundLayerMask);
-        // Draw collider box
-        //Debug.DrawRay(playerCollider2D.bounds.center, Vector3.down * (playerCollider2D.bounds.extents.y + groundCollisionDistance), Color.green);
-        return raycastHit.collider != null;
+    // Allow for jump cutting where shorter jump presses result in shorter jumps
+    private void ApplyFallMultiplier() {
+        // Apply standard gravity scale if not currently jumping
+        if (rb.velocity.y < 0) {
+            rb.gravityScale = fallMultiplier - 1;
+        } else if (rb.velocity.y > 0 && !IsGrounded() && !Input.GetButton("Jump")) {
+            // Modify to bring player back down quicker on short jumps
+            rb.gravityScale = lowJumpMultiplier;
+        } else {
+            rb.gravityScale = 1f;
+        }
+    }
 
+    private void UpdateJumpVariables() {
+        // Update Coyote Timer
+        if (IsGrounded()) {
+            coyoteTimeCounter = coyoteTime;
+        } else {
+            coyoteTimeCounter -= Time.fixedDeltaTime;
+        }
     }
 
     private void OnEnable() {
